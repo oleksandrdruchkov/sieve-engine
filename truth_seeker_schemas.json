@@ -1,0 +1,1173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/truth-seeker/schemas-v1.json",
+  "title": "Шукач істини: Task і Ledger (v1)",
+  "description": "Використання: валідувати екземпляр проти {\"$ref\": \"#/$defs/Task\"} або {\"$ref\": \"#/$defs/LedgerRecord\"}. Інваріанти, яких схема не виражає (порядок low<=mid<=high, lr_effective = cap(lr_raw), ланцюг хешів, відтворюваність вердикту з evidence_ids, передбачення раніше за результат), потрібно перевіряти кодом.",
+  "$defs": {
+    "Sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "Tier": {
+      "enum": [
+        "T0",
+        "T1",
+        "T1p",
+        "T2",
+        "T3",
+        "T4"
+      ]
+    },
+    "Prob": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "NodeRef": {
+      "type": "object",
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "node_hash": {
+          "$ref": "#/$defs/Sha256"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "node_hash"
+      ],
+      "description": "Ціль з відбитком вмісту: node_hash — це fencing-токен. Результат для цілі, чий поточний hash інший, застосовувати не можна."
+    },
+    "LRInterval": {
+      "type": "object",
+      "properties": {
+        "low": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "mid": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "high": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "low",
+        "mid",
+        "high"
+      ]
+    },
+    "Budget": {
+      "type": "object",
+      "properties": {
+        "tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "wall_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "Executor": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "role": {
+          "enum": [
+            "RED_TEAM",
+            "JUDGE",
+            "VERIFIER",
+            "PATCHER",
+            "ORCHESTRATOR",
+            "HUMAN"
+          ]
+        },
+        "kind": {
+          "enum": [
+            "LLM",
+            "TOOL",
+            "HUMAN",
+            "SYSTEM"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "role",
+        "kind"
+      ]
+    },
+    "Prediction": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "if_attack_true": {
+          "type": "string",
+          "minLength": 1
+        },
+        "if_attack_false": {
+          "type": "string",
+          "minLength": 1
+        },
+        "decision_rule": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "statement",
+        "if_attack_true",
+        "if_attack_false",
+        "decision_rule"
+      ]
+    },
+    "Task": {
+      "description": "Одиниця роботи для воркера. Воркер без стану: працює зі знімком snapshot і повертає результат, який застосовується лише після fencing-перевірки target.node_hash.",
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "1.0"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "idempotency_key": {
+          "$ref": "#/$defs/Sha256",
+          "description": "sha256 від канонічного {kind, target.node_hash, method.tool, method.tool_version, predictions_hash}. Однаковий ключ = та сама робота (single-flight, безпечний повтор)."
+        },
+        "kind": {
+          "enum": [
+            "GENERATE",
+            "MERGE",
+            "ATTACK",
+            "JUDGE_SCOPE",
+            "JUDGE_MATERIALITY",
+            "VERIFY",
+            "AGGREGATE",
+            "REGENERATE"
+          ]
+        },
+        "status": {
+          "enum": [
+            "QUEUED",
+            "RESERVED",
+            "RUNNING",
+            "DONE",
+            "FAILED",
+            "CANCELLED",
+            "STALE",
+            "UNVERIFIED"
+          ]
+        },
+        "epoch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "trace_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "snapshot": {
+          "type": "object",
+          "properties": {
+            "graph_version": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "graph_hash": {
+              "$ref": "#/$defs/Sha256"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "graph_version",
+            "graph_hash"
+          ]
+        },
+        "target": {
+          "$ref": "#/$defs/NodeRef"
+        },
+        "attack_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "method": {
+          "type": "object",
+          "properties": {
+            "tier": {
+              "$ref": "#/$defs/Tier"
+            },
+            "tool": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tool_version": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "tier",
+            "tool",
+            "tool_version"
+          ]
+        },
+        "predictions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Prediction"
+          },
+          "minItems": 1,
+          "description": "Передбачення фіксуються ДО виконання (V0), щоб виключити пост-фактум раціоналізацію."
+        },
+        "predictions_registered_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "predictions_hash": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "priority": {
+          "type": "object",
+          "properties": {
+            "score": {
+              "type": "number"
+            },
+            "components": {
+              "type": "object",
+              "properties": {
+                "el": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "p_a": {
+                  "$ref": "#/$defs/Prob"
+                },
+                "info_gain": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "cost": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              },
+              "additionalProperties": false
+            },
+            "enqueued_at": {
+              "$ref": "#/$defs/Timestamp"
+            },
+            "aging_boost": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "score",
+            "enqueued_at"
+          ]
+        },
+        "budget": {
+          "type": "object",
+          "properties": {
+            "reserved": {
+              "$ref": "#/$defs/Budget"
+            },
+            "spent": {
+              "$ref": "#/$defs/Budget"
+            },
+            "deadline": {
+              "$ref": "#/$defs/Timestamp"
+            },
+            "max_retries": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "reserved",
+            "deadline"
+          ]
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "parent_task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "subscribers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Id"
+          },
+          "description": "attack_id, що чекають на цей самий in-flight результат (single-flight)."
+        },
+        "isolation": {
+          "type": "object",
+          "properties": {
+            "visible_context": {
+              "enum": [
+                "SNAPSHOT_ONLY",
+                "TASK_INPUT_ONLY"
+              ]
+            },
+            "forbid_peer_outputs": {
+              "const": true
+            },
+            "executor_must_differ_from": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Id"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "visible_context",
+            "forbid_peer_outputs"
+          ]
+        },
+        "assigned_executor": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "task_id",
+        "idempotency_key",
+        "kind",
+        "status",
+        "epoch",
+        "snapshot",
+        "priority",
+        "budget",
+        "attempt",
+        "isolation"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "ATTACK",
+                  "VERIFY",
+                  "JUDGE_SCOPE",
+                  "JUDGE_MATERIALITY",
+                  "REGENERATE"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "target"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "VERIFY"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "attack_id",
+              "method",
+              "predictions",
+              "predictions_registered_at",
+              "predictions_hash"
+            ]
+          }
+        }
+      ]
+    },
+    "Provenance": {
+      "type": "object",
+      "properties": {
+        "source_type": {
+          "enum": [
+            "PRIMARY_DOC",
+            "SECONDARY",
+            "DATASET",
+            "COMPUTATION",
+            "EXPERIMENT",
+            "EXPERT",
+            "LLM_OUTPUT"
+          ]
+        },
+        "uri": {
+          "type": "string"
+        },
+        "retrieved_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "published_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "author": {
+          "type": "string"
+        },
+        "content_hash": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "code_hash": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "citation_of": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Первинні джерела, на які спирається доказ: для кластеризації за походженням."
+        },
+        "screened_for_injection": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "source_type",
+        "retrieved_at",
+        "content_hash",
+        "screened_for_injection"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source_type": {
+                "const": "COMPUTATION"
+              }
+            },
+            "required": [
+              "source_type"
+            ]
+          },
+          "then": {
+            "required": [
+              "code_hash"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_type": {
+                "enum": [
+                  "PRIMARY_DOC",
+                  "SECONDARY",
+                  "DATASET"
+                ]
+              }
+            },
+            "required": [
+              "source_type"
+            ]
+          },
+          "then": {
+            "required": [
+              "uri"
+            ]
+          }
+        }
+      ]
+    },
+    "EvidencePayload": {
+      "type": "object",
+      "properties": {
+        "attack_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "target": {
+          "$ref": "#/$defs/NodeRef"
+        },
+        "prediction_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "cluster_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Одне походження = один кластер. У кластері рахується найсильніший доказ."
+        },
+        "tier": {
+          "$ref": "#/$defs/Tier"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "observation": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string",
+              "minLength": 1
+            },
+            "raw_blob_hash": {
+              "$ref": "#/$defs/Sha256"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "summary"
+          ]
+        },
+        "direction": {
+          "enum": [
+            "SUPPORTS_ATTACK",
+            "REFUTES_ATTACK",
+            "NEUTRAL"
+          ]
+        },
+        "lr_raw": {
+          "$ref": "#/$defs/LRInterval",
+          "description": "Оцінка виконавця, до обмеження за tier."
+        },
+        "lr_effective": {
+          "$ref": "#/$defs/LRInterval",
+          "description": "Після обмеження LR_CAP[tier]; саме це береться в розрахунок."
+        },
+        "cap_applied": {
+          "type": "boolean"
+        },
+        "calibration_ref": {
+          "type": "object",
+          "properties": {
+            "table_version": {
+              "type": "string"
+            },
+            "sensitivity": {
+              "$ref": "#/$defs/Prob"
+            },
+            "specificity": {
+              "$ref": "#/$defs/Prob"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "table_version"
+          ]
+        },
+        "valid_until": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "tie_break_key": {
+          "type": "string",
+          "description": "Детермінований вибір при рівному |ln LR| у кластері."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "attack_id",
+        "target",
+        "prediction_id",
+        "cluster_id",
+        "tier",
+        "provenance",
+        "observation",
+        "direction",
+        "lr_raw",
+        "lr_effective",
+        "cap_applied",
+        "tie_break_key"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "tier": {
+                "const": "T4"
+              }
+            },
+            "required": [
+              "tier"
+            ]
+          },
+          "then": {
+            "properties": {
+              "provenance": {
+                "properties": {
+                  "source_type": {
+                    "const": "LLM_OUTPUT"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "provenance": {
+                "properties": {
+                  "source_type": {
+                    "const": "LLM_OUTPUT"
+                  }
+                },
+                "required": [
+                  "source_type"
+                ]
+              }
+            },
+            "required": [
+              "provenance"
+            ]
+          },
+          "then": {
+            "properties": {
+              "tier": {
+                "const": "T4"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "VerdictPayload": {
+      "type": "object",
+      "properties": {
+        "attack_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "prior": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 1
+        },
+        "posterior": {
+          "$ref": "#/$defs/Prob"
+        },
+        "verdict": {
+          "enum": [
+            "CONFIRMED",
+            "REFUTED",
+            "UNRESOLVED"
+          ]
+        },
+        "thresholds": {
+          "type": "object",
+          "properties": {
+            "confirm_at": {
+              "$ref": "#/$defs/Prob"
+            },
+            "refute_at": {
+              "$ref": "#/$defs/Prob"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "confirm_at",
+            "refute_at"
+          ]
+        },
+        "evidence_set_hash": {
+          "$ref": "#/$defs/Sha256",
+          "description": "sha256 від відсортованих evidence_ids. Вердикт = чиста функція від цієї множини, тому його можна відтворити."
+        },
+        "evidence_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        },
+        "clusters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "cluster_id": {
+                "type": "string"
+              },
+              "chosen_evidence_id": {
+                "$ref": "#/$defs/Id"
+              },
+              "ln_lr": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "cluster_id",
+              "chosen_evidence_id",
+              "ln_lr"
+            ]
+          }
+        },
+        "grounded": {
+          "type": "boolean",
+          "description": "false, якщо всі докази мають tier T4 (лише LLM)."
+        },
+        "rules_applied": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "CLUSTER_MAX",
+              "T4_CANNOT_CLOSE",
+              "TAIL_RISK_ESCALATION"
+            ]
+          }
+        },
+        "l9_effect": {
+          "type": "object",
+          "properties": {
+            "multiplier": {
+              "$ref": "#/$defs/Prob"
+            },
+            "p_success_before": {
+              "$ref": "#/$defs/Prob"
+            },
+            "p_success_after": {
+              "$ref": "#/$defs/Prob"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "attack_id",
+        "prior",
+        "posterior",
+        "verdict",
+        "thresholds",
+        "evidence_set_hash",
+        "evidence_ids",
+        "clusters",
+        "grounded",
+        "rules_applied"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "grounded": {
+                "const": false
+              }
+            },
+            "required": [
+              "grounded"
+            ]
+          },
+          "then": {
+            "properties": {
+              "verdict": {
+                "const": "UNRESOLVED"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "RoutingPayload": {
+      "type": "object",
+      "properties": {
+        "attack_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "decision": {
+          "enum": [
+            "EXECUTE_VERIFICATION",
+            "MITIGATE",
+            "RISK_REGISTER",
+            "ESCALATE_HUMAN",
+            "REJECT_LOGGED"
+          ]
+        },
+        "reason_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope": {
+          "enum": [
+            "IN_SCOPE",
+            "OUT_OF_SCOPE",
+            "AMBIGUOUS"
+          ]
+        },
+        "target_class": {
+          "enum": [
+            "DIRECT",
+            "ENABLING",
+            "ADJACENT",
+            "META"
+          ]
+        },
+        "materiality": {
+          "type": "object",
+          "properties": {
+            "p": {
+              "$ref": "#/$defs/Prob"
+            },
+            "impact": {
+              "type": "number",
+              "minimum": 0
+            },
+            "el": {
+              "type": "number",
+              "minimum": 0
+            },
+            "reversibility": {
+              "$ref": "#/$defs/Prob"
+            },
+            "tail_risk": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "judges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "attack_id",
+        "decision",
+        "reason_code",
+        "scope",
+        "target_class"
+      ]
+    },
+    "MutationPayload": {
+      "type": "object",
+      "properties": {
+        "mutation_type": {
+          "enum": [
+            "REMOVE_SUBTREE",
+            "ADD_NODE",
+            "RETYPE_EDGE",
+            "MERGE_NODES"
+          ]
+        },
+        "cause_attack_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "nodes_removed": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NodeRef"
+          }
+        },
+        "nodes_added": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NodeRef"
+          }
+        },
+        "antipattern_of": {
+          "$ref": "#/$defs/Id",
+          "description": "Спростований вузол зберігається як антипатерн, щоб патч не відтворив його."
+        },
+        "delta_confidence": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/Prob"
+            },
+            "after": {
+              "$ref": "#/$defs/Prob"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "mutation_type"
+      ]
+    },
+    "TaskEventPayload": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "event": {
+          "enum": [
+            "ENQUEUED",
+            "RESERVED",
+            "STARTED",
+            "COMPLETED",
+            "FAILED",
+            "CANCELLED",
+            "TIMED_OUT",
+            "RETRIED",
+            "SUBSCRIBED_TO_INFLIGHT"
+          ]
+        },
+        "detail": {
+          "type": "string"
+        },
+        "budget_spent": {
+          "$ref": "#/$defs/Budget"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "task_id",
+        "event"
+      ]
+    },
+    "LedgerRecord": {
+      "description": "Append-only запис. seq монотонний, record_hash = sha256(prev_hash + канонічний JSON запису без record_hash): ланцюг виявляє підміну.",
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "1.0"
+        },
+        "record_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "prev_hash": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "record_hash": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "type": {
+          "enum": [
+            "EVIDENCE",
+            "VERDICT",
+            "ROUTING",
+            "MUTATION",
+            "TASK_EVENT"
+          ]
+        },
+        "epoch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "graph_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "apply_status": {
+          "enum": [
+            "APPLIED",
+            "STALE",
+            "REJECTED"
+          ]
+        },
+        "stale_reason": {
+          "enum": [
+            "TARGET_REMOVED",
+            "TARGET_HASH_CHANGED",
+            "EPOCH_EXPIRED",
+            "DUPLICATE_KEY",
+            "BUDGET_EXHAUSTED",
+            "POLICY_VIOLATION"
+          ]
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "idempotency_key": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "executor": {
+          "$ref": "#/$defs/Executor"
+        },
+        "payload": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_id",
+        "seq",
+        "prev_hash",
+        "record_hash",
+        "created_at",
+        "type",
+        "epoch",
+        "graph_version",
+        "apply_status",
+        "executor",
+        "payload"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "apply_status": {
+                "enum": [
+                  "STALE",
+                  "REJECTED"
+                ]
+              }
+            },
+            "required": [
+              "apply_status"
+            ]
+          },
+          "then": {
+            "required": [
+              "stale_reason"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "EVIDENCE"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/EvidencePayload"
+              }
+            },
+            "required": [
+              "task_id",
+              "idempotency_key"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "VERDICT"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/VerdictPayload"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "ROUTING"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/RoutingPayload"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "MUTATION"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/MutationPayload"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "TASK_EVENT"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/TaskEventPayload"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

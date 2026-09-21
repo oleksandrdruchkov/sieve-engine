@@ -1,0 +1,852 @@
+{
+  "_note": "Ілюстративний сценарій «10 000 rps → 1 000 rps». Дані вигадані.",
+  "request_text": "Мені потрібна масштабована і безпечна архітектура",
+  "requirements": [
+    {
+      "id": "R1",
+      "text": "Витримувати пікове навантаження",
+      "priority": "MUST",
+      "source": "INFERRED",
+      "confirmed_by_user": true,
+      "criteria": [
+        {
+          "metric": "throughput",
+          "comparator": ">=",
+          "value": 10000,
+          "unit": "rps"
+        }
+      ],
+      "acceptance": "Масштабованість: пікове навантаження без деградації"
+    },
+    {
+      "id": "R2",
+      "text": "Захист даних у спокої та під час передавання",
+      "priority": "MUST",
+      "source": "USER_STATED",
+      "source_quote": "безпечна",
+      "confirmed_by_user": true,
+      "scope": [
+        "at_rest",
+        "in_transit"
+      ],
+      "acceptance": "Безпека даних"
+    },
+    {
+      "id": "R3",
+      "text": "Робота у двох регіонах",
+      "priority": "SHOULD",
+      "source": "INFERRED",
+      "confirmed_by_user": true,
+      "scope": [
+        "eu-west",
+        "us-east"
+      ]
+    },
+    {
+      "id": "R4",
+      "text": "Впровадження за 90 днів",
+      "priority": "COULD",
+      "source": "INFERRED",
+      "confirmed_by_user": true,
+      "max_horizon_days": 90
+    }
+  ],
+  "graph_0": {
+    "n-api": {
+      "node_id": "n-api",
+      "kind": "CLAIM",
+      "statement": "API-шар масштабується горизонтально до 12 000 запитів/с",
+      "quantities": [
+        {
+          "metric": "throughput",
+          "comparator": ">=",
+          "value": 12000,
+          "unit": "rps"
+        }
+      ],
+      "scope": [],
+      "conditions": [],
+      "serves": [
+        "R1"
+      ],
+      "requires": [],
+      "q": 0.85,
+      "node_hash": "3e080fa31fbb19559f79c1da2e7bf86ecaabf8b9c6de9acd6b8e75ed4faa5ced"
+    },
+    "n-cache": {
+      "node_id": "n-cache",
+      "kind": "CLAIM",
+      "statement": "Кеш-шар розвантажує БД до 15 000 запитів/с",
+      "quantities": [
+        {
+          "metric": "throughput",
+          "comparator": ">=",
+          "value": 15000,
+          "unit": "rps"
+        }
+      ],
+      "scope": [],
+      "conditions": [],
+      "serves": [
+        "R1"
+      ],
+      "requires": [],
+      "q": 0.9,
+      "node_hash": "4f0d84b0e557c9e2f513eb1f579a6030b8d617fa6f47d7d08e339165bd40b0a4"
+    },
+    "n-enc": {
+      "node_id": "n-enc",
+      "kind": "CLAIM",
+      "statement": "Дані шифруються у спокої та під час передавання",
+      "quantities": [],
+      "scope": [
+        "at_rest",
+        "in_transit"
+      ],
+      "conditions": [],
+      "serves": [
+        "R2"
+      ],
+      "requires": [],
+      "q": 0.9,
+      "node_hash": "fb1ed5040a9d0ac69d0969b16738f7e4667b9b5f2ae533e11d62c982606d4120"
+    },
+    "n-mreg": {
+      "node_id": "n-mreg",
+      "kind": "CLAIM",
+      "statement": "Активна багаторегіонність",
+      "quantities": [],
+      "scope": [
+        "eu-west",
+        "us-east"
+      ],
+      "conditions": [],
+      "serves": [
+        "R3"
+      ],
+      "requires": [],
+      "q": 0.7,
+      "node_hash": "782adfd6d6fd3cc28c97b4bfc389b1c0d73b37702d4bc69982414403557a57cb"
+    },
+    "n-plan": {
+      "node_id": "n-plan",
+      "kind": "ACTION",
+      "statement": "Міграцію завершено за 80 днів",
+      "quantities": [],
+      "scope": [],
+      "conditions": [],
+      "serves": [
+        "R4"
+      ],
+      "requires": [],
+      "q": 0.9,
+      "horizon_days": 80,
+      "node_hash": "b1b8faae9bc48ee2493f8c0c9003c18f9fa1bb05685e49e76b8a3c9aa7146478"
+    },
+    "n-goal": {
+      "node_id": "n-goal",
+      "kind": "CLAIM",
+      "statement": "Архітектура готова",
+      "quantities": [],
+      "scope": [],
+      "conditions": [],
+      "serves": [],
+      "requires": [
+        "n-api",
+        "n-cache",
+        "n-enc",
+        "n-mreg",
+        "n-plan"
+      ],
+      "q": 0.95,
+      "node_hash": "16674f72b845da67ebadd880ce430e1c5eb2051756e28d4d3b780f8db2fff3a8"
+    }
+  },
+  "graph_n": {
+    "n-api2": {
+      "node_id": "n-api2",
+      "kind": "CLAIM",
+      "statement": "API-шар обмежено 1 000 запитів/с на кластер",
+      "quantities": [
+        {
+          "metric": "throughput",
+          "comparator": ">=",
+          "value": 1000,
+          "unit": "rps"
+        }
+      ],
+      "scope": [],
+      "conditions": [],
+      "serves": [
+        "R1"
+      ],
+      "requires": [],
+      "q": 0.95,
+      "node_hash": "7084548928ff243bf0ea19b6266651532e9dab7b1bc37936cd3b74e6fa5b8c0c"
+    },
+    "n-cache": {
+      "node_id": "n-cache",
+      "kind": "CLAIM",
+      "statement": "Кеш-шар розвантажує БД до 15 000 запитів/с",
+      "quantities": [
+        {
+          "metric": "throughput",
+          "comparator": ">=",
+          "value": 15000,
+          "unit": "rps"
+        }
+      ],
+      "scope": [],
+      "conditions": [],
+      "serves": [
+        "R1"
+      ],
+      "requires": [],
+      "q": 0.9,
+      "node_hash": "4f0d84b0e557c9e2f513eb1f579a6030b8d617fa6f47d7d08e339165bd40b0a4"
+    },
+    "n-enc2": {
+      "node_id": "n-enc2",
+      "kind": "CLAIM",
+      "statement": "Шифрування даних у спокої",
+      "quantities": [],
+      "scope": [
+        "at_rest"
+      ],
+      "conditions": [
+        "лише для нових даних"
+      ],
+      "serves": [
+        "R2"
+      ],
+      "requires": [],
+      "q": 0.95,
+      "node_hash": "17c03dc73a5fea1d2df89c4af124ea1ac9b8fa65cd023800cdd1407baaf95852"
+    },
+    "n-plan2": {
+      "node_id": "n-plan2",
+      "kind": "ACTION",
+      "statement": "Міграцію завершено за 85 днів",
+      "quantities": [],
+      "scope": [],
+      "conditions": [],
+      "serves": [
+        "R4"
+      ],
+      "requires": [],
+      "q": 0.92,
+      "horizon_days": 85,
+      "node_hash": "6930a7ebe7ac86b9d2c91cf6d2f9ce8b8e3db546ed670450f05b68c1b24af852"
+    },
+    "n-goal": {
+      "node_id": "n-goal",
+      "kind": "CLAIM",
+      "statement": "Архітектура готова",
+      "quantities": [],
+      "scope": [],
+      "conditions": [],
+      "serves": [],
+      "requires": [
+        "n-api2",
+        "n-cache",
+        "n-enc2",
+        "n-plan2"
+      ],
+      "q": 0.95,
+      "node_hash": "16674f72b845da67ebadd880ce430e1c5eb2051756e28d4d3b780f8db2fff3a8"
+    }
+  },
+  "ledger": [
+    {
+      "created_at": "2026-09-21T11:00:00Z",
+      "type": "GOAL_FREEZE",
+      "epoch": 0,
+      "graph_version": 0,
+      "apply_status": "APPLIED",
+      "executor": {
+        "id": "orchestrator",
+        "role": "ORCHESTRATOR",
+        "kind": "SYSTEM"
+      },
+      "payload": {
+        "request_text": "Мені потрібна масштабована і безпечна архітектура",
+        "requirements": [
+          {
+            "id": "R1",
+            "text": "Витримувати пікове навантаження",
+            "priority": "MUST",
+            "source": "INFERRED",
+            "confirmed_by_user": true,
+            "criteria": [
+              {
+                "metric": "throughput",
+                "comparator": ">=",
+                "value": 10000,
+                "unit": "rps"
+              }
+            ],
+            "acceptance": "Масштабованість: пікове навантаження без деградації"
+          },
+          {
+            "id": "R2",
+            "text": "Захист даних у спокої та під час передавання",
+            "priority": "MUST",
+            "source": "USER_STATED",
+            "source_quote": "безпечна",
+            "confirmed_by_user": true,
+            "scope": [
+              "at_rest",
+              "in_transit"
+            ],
+            "acceptance": "Безпека даних"
+          },
+          {
+            "id": "R3",
+            "text": "Робота у двох регіонах",
+            "priority": "SHOULD",
+            "source": "INFERRED",
+            "confirmed_by_user": true,
+            "scope": [
+              "eu-west",
+              "us-east"
+            ]
+          },
+          {
+            "id": "R4",
+            "text": "Впровадження за 90 днів",
+            "priority": "COULD",
+            "source": "INFERRED",
+            "confirmed_by_user": true,
+            "max_horizon_days": 90
+          }
+        ],
+        "contract_hash": "00c0353b6bac17c654cfc91b0d7eb300d976b327e9b0ed98a58327e04940db09",
+        "frozen_at": "2026-09-21T11:00:00Z"
+      },
+      "schema_version": "1.2",
+      "seq": 0,
+      "record_id": "rec-0000",
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "record_hash": "05c8626ef157ca33f69d134e2a3a57a99dc259740066eccb22c00adc79626482"
+    },
+    {
+      "created_at": "2026-09-21T11:01:00Z",
+      "type": "MUTATION",
+      "epoch": 1,
+      "graph_version": 1,
+      "apply_status": "APPLIED",
+      "executor": {
+        "id": "orchestrator",
+        "role": "ORCHESTRATOR",
+        "kind": "SYSTEM"
+      },
+      "payload": {
+        "mutation_type": "REMOVE_SUBTREE",
+        "cause_attack_id": "attack-101",
+        "nodes_removed": [
+          {
+            "node_id": "n-api",
+            "node_hash": "3e080fa31fbb19559f79c1da2e7bf86ecaabf8b9c6de9acd6b8e75ed4faa5ced"
+          }
+        ],
+        "nodes_added": [
+          {
+            "node_id": "n-api2",
+            "node_hash": "7084548928ff243bf0ea19b6266651532e9dab7b1bc37936cd3b74e6fa5b8c0c"
+          }
+        ],
+        "delta_confidence": {
+          "before": 0.41,
+          "after": 0.52
+        },
+        "antipattern_of": "n-api"
+      },
+      "schema_version": "1.2",
+      "seq": 1,
+      "record_id": "rec-0001",
+      "prev_hash": "05c8626ef157ca33f69d134e2a3a57a99dc259740066eccb22c00adc79626482",
+      "record_hash": "ee76e9a20cb3e56588d74659b7b44e697404c0ff49586bb8026856e234bab347"
+    },
+    {
+      "created_at": "2026-09-21T11:02:00Z",
+      "type": "MUTATION",
+      "epoch": 2,
+      "graph_version": 2,
+      "apply_status": "APPLIED",
+      "executor": {
+        "id": "orchestrator",
+        "role": "ORCHESTRATOR",
+        "kind": "SYSTEM"
+      },
+      "payload": {
+        "mutation_type": "REMOVE_SUBTREE",
+        "cause_attack_id": "attack-102",
+        "nodes_removed": [
+          {
+            "node_id": "n-mreg",
+            "node_hash": "782adfd6d6fd3cc28c97b4bfc389b1c0d73b37702d4bc69982414403557a57cb"
+          }
+        ],
+        "nodes_added": [],
+        "delta_confidence": {
+          "before": 0.52,
+          "after": 0.58
+        },
+        "antipattern_of": "n-mreg"
+      },
+      "schema_version": "1.2",
+      "seq": 2,
+      "record_id": "rec-0002",
+      "prev_hash": "ee76e9a20cb3e56588d74659b7b44e697404c0ff49586bb8026856e234bab347",
+      "record_hash": "8879888a6879304879860858bfaae9820a232fe1f0309239006e8d6d77a73019"
+    },
+    {
+      "created_at": "2026-09-21T11:03:00Z",
+      "type": "MUTATION",
+      "epoch": 3,
+      "graph_version": 3,
+      "apply_status": "APPLIED",
+      "executor": {
+        "id": "orchestrator",
+        "role": "ORCHESTRATOR",
+        "kind": "SYSTEM"
+      },
+      "payload": {
+        "mutation_type": "REMOVE_SUBTREE",
+        "cause_attack_id": "attack-103",
+        "nodes_removed": [
+          {
+            "node_id": "n-enc",
+            "node_hash": "fb1ed5040a9d0ac69d0969b16738f7e4667b9b5f2ae533e11d62c982606d4120"
+          }
+        ],
+        "nodes_added": [
+          {
+            "node_id": "n-enc2",
+            "node_hash": "17c03dc73a5fea1d2df89c4af124ea1ac9b8fa65cd023800cdd1407baaf95852"
+          }
+        ],
+        "delta_confidence": {
+          "before": 0.58,
+          "after": 0.66
+        },
+        "antipattern_of": "n-enc"
+      },
+      "schema_version": "1.2",
+      "seq": 3,
+      "record_id": "rec-0003",
+      "prev_hash": "8879888a6879304879860858bfaae9820a232fe1f0309239006e8d6d77a73019",
+      "record_hash": "e6f908043423c4b6a6d15448f0bcc4ffe322c7e7a88b02b08b2867e99bd672b7"
+    },
+    {
+      "created_at": "2026-09-21T11:04:00Z",
+      "type": "MUTATION",
+      "epoch": 3,
+      "graph_version": 4,
+      "apply_status": "APPLIED",
+      "executor": {
+        "id": "orchestrator",
+        "role": "ORCHESTRATOR",
+        "kind": "SYSTEM"
+      },
+      "payload": {
+        "mutation_type": "REMOVE_SUBTREE",
+        "cause_attack_id": "attack-104",
+        "nodes_removed": [
+          {
+            "node_id": "n-plan",
+            "node_hash": "b1b8faae9bc48ee2493f8c0c9003c18f9fa1bb05685e49e76b8a3c9aa7146478"
+          }
+        ],
+        "nodes_added": [
+          {
+            "node_id": "n-plan2",
+            "node_hash": "6930a7ebe7ac86b9d2c91cf6d2f9ce8b8e3db546ed670450f05b68c1b24af852"
+          }
+        ],
+        "delta_confidence": {
+          "before": 0.66,
+          "after": 0.67
+        },
+        "antipattern_of": "n-plan"
+      },
+      "schema_version": "1.2",
+      "seq": 4,
+      "record_id": "rec-0004",
+      "prev_hash": "e6f908043423c4b6a6d15448f0bcc4ffe322c7e7a88b02b08b2867e99bd672b7",
+      "record_hash": "020e4a2ef16509a573acb4de269a39d65764af9c0371a1d3ee250774662130e1"
+    },
+    {
+      "created_at": "2026-09-21T11:10:00Z",
+      "type": "CONCESSION",
+      "epoch": 4,
+      "graph_version": 4,
+      "apply_status": "APPLIED",
+      "executor": {
+        "id": "orchestrator",
+        "role": "ORCHESTRATOR",
+        "kind": "SYSTEM"
+      },
+      "payload": {
+        "requirement_id": "R1",
+        "priority": "MUST",
+        "nodes_before": [
+          "n-api",
+          "n-cache"
+        ],
+        "nodes_after": [
+          "n-api2",
+          "n-cache"
+        ],
+        "concession_id": "conc-dc7ec1fe8cf20e0c",
+        "kind": "RELAXED_THRESHOLD",
+        "effect_on_requirement": "WEAKENED",
+        "detail": {
+          "metric": "throughput",
+          "comparator": ">=",
+          "unit": "rps",
+          "from": 12000,
+          "to": 1000,
+          "magnitude": 0.916667
+        },
+        "caused_by": {
+          "mutation_record_ids": [
+            "rec-0001"
+          ],
+          "attack_ids": [
+            "attack-101"
+          ]
+        },
+        "delta_p": 0.11,
+        "needs_user_decision": true
+      },
+      "schema_version": "1.2",
+      "seq": 5,
+      "record_id": "rec-0005",
+      "prev_hash": "020e4a2ef16509a573acb4de269a39d65764af9c0371a1d3ee250774662130e1",
+      "record_hash": "8f7edd547050b9c0649969d3fabd750d7872cbd0ae99552247a25191c37de312"
+    },
+    {
+      "created_at": "2026-09-21T11:10:00Z",
+      "type": "CONCESSION",
+      "epoch": 4,
+      "graph_version": 4,
+      "apply_status": "APPLIED",
+      "executor": {
+        "id": "orchestrator",
+        "role": "ORCHESTRATOR",
+        "kind": "SYSTEM"
+      },
+      "payload": {
+        "requirement_id": "R2",
+        "priority": "MUST",
+        "nodes_before": [
+          "n-enc"
+        ],
+        "nodes_after": [
+          "n-enc2"
+        ],
+        "concession_id": "conc-f9cffbcf9a4d7860",
+        "kind": "ADDED_CONDITION",
+        "effect_on_requirement": "WEAKENED",
+        "detail": {
+          "from": [],
+          "to": [
+            "лише для нових даних"
+          ],
+          "added_conditions": [
+            "лише для нових даних"
+          ]
+        },
+        "caused_by": {
+          "mutation_record_ids": [
+            "rec-0003"
+          ],
+          "attack_ids": [
+            "attack-103"
+          ]
+        },
+        "delta_p": 0.04,
+        "needs_user_decision": true
+      },
+      "schema_version": "1.2",
+      "seq": 6,
+      "record_id": "rec-0006",
+      "prev_hash": "8f7edd547050b9c0649969d3fabd750d7872cbd0ae99552247a25191c37de312",
+      "record_hash": "6b157cb431213136da2e039defb6eb96e2d3b814903adf989ad7ec597ee225b6"
+    },
+    {
+      "created_at": "2026-09-21T11:10:00Z",
+      "type": "CONCESSION",
+      "epoch": 4,
+      "graph_version": 4,
+      "apply_status": "APPLIED",
+      "executor": {
+        "id": "orchestrator",
+        "role": "ORCHESTRATOR",
+        "kind": "SYSTEM"
+      },
+      "payload": {
+        "requirement_id": "R2",
+        "priority": "MUST",
+        "nodes_before": [
+          "n-enc"
+        ],
+        "nodes_after": [
+          "n-enc2"
+        ],
+        "concession_id": "conc-bd123723f2b9f3b1",
+        "kind": "NARROWED_SCOPE",
+        "effect_on_requirement": "WEAKENED",
+        "detail": {
+          "from": [
+            "at_rest",
+            "in_transit"
+          ],
+          "to": [
+            "at_rest"
+          ],
+          "removed_tags": [
+            "in_transit"
+          ]
+        },
+        "caused_by": {
+          "mutation_record_ids": [
+            "rec-0003"
+          ],
+          "attack_ids": [
+            "attack-103"
+          ]
+        },
+        "delta_p": 0.04,
+        "needs_user_decision": true
+      },
+      "schema_version": "1.2",
+      "seq": 7,
+      "record_id": "rec-0007",
+      "prev_hash": "6b157cb431213136da2e039defb6eb96e2d3b814903adf989ad7ec597ee225b6",
+      "record_hash": "86a653311a0f98f9f1049fc25d20f41391ff7e2c400b2b9d535332e7e21342eb"
+    },
+    {
+      "created_at": "2026-09-21T11:10:00Z",
+      "type": "CONCESSION",
+      "epoch": 4,
+      "graph_version": 4,
+      "apply_status": "APPLIED",
+      "executor": {
+        "id": "orchestrator",
+        "role": "ORCHESTRATOR",
+        "kind": "SYSTEM"
+      },
+      "payload": {
+        "requirement_id": "R3",
+        "priority": "SHOULD",
+        "nodes_before": [
+          "n-mreg"
+        ],
+        "nodes_after": [],
+        "concession_id": "conc-7aa67bef4a1834aa",
+        "kind": "DROPPED_REQUIREMENT",
+        "effect_on_requirement": "DROPPED",
+        "detail": {
+          "from": [
+            "n-mreg"
+          ],
+          "to": []
+        },
+        "caused_by": {
+          "mutation_record_ids": [
+            "rec-0002"
+          ],
+          "attack_ids": [
+            "attack-102"
+          ]
+        },
+        "delta_p": 0.06,
+        "needs_user_decision": false
+      },
+      "schema_version": "1.2",
+      "seq": 8,
+      "record_id": "rec-0008",
+      "prev_hash": "86a653311a0f98f9f1049fc25d20f41391ff7e2c400b2b9d535332e7e21342eb",
+      "record_hash": "9b2ad9c5c9fae7eaccd95d77b8ea2437d18439d60bdfa3609fe395ad404d18c7"
+    },
+    {
+      "created_at": "2026-09-21T11:10:00Z",
+      "type": "CONCESSION",
+      "epoch": 4,
+      "graph_version": 4,
+      "apply_status": "APPLIED",
+      "executor": {
+        "id": "orchestrator",
+        "role": "ORCHESTRATOR",
+        "kind": "SYSTEM"
+      },
+      "payload": {
+        "requirement_id": "R4",
+        "priority": "COULD",
+        "nodes_before": [
+          "n-plan"
+        ],
+        "nodes_after": [
+          "n-plan2"
+        ],
+        "concession_id": "conc-4017e1741c072e17",
+        "kind": "DELAYED_HORIZON",
+        "effect_on_requirement": "NONE",
+        "detail": {
+          "metric": "horizon_days",
+          "unit": "days",
+          "from": 80,
+          "to": 85
+        },
+        "caused_by": {
+          "mutation_record_ids": [
+            "rec-0004"
+          ],
+          "attack_ids": [
+            "attack-104"
+          ]
+        },
+        "delta_p": 0.01,
+        "needs_user_decision": false
+      },
+      "schema_version": "1.2",
+      "seq": 9,
+      "record_id": "rec-0009",
+      "prev_hash": "9b2ad9c5c9fae7eaccd95d77b8ea2437d18439d60bdfa3609fe395ad404d18c7",
+      "record_hash": "180e35476b2ecd75503e371ce4305b7bccbce42a6bd55c4dd1ddbaeedaba49b4"
+    },
+    {
+      "created_at": "2026-09-21T11:11:00Z",
+      "type": "FIDELITY",
+      "epoch": 4,
+      "graph_version": 4,
+      "apply_status": "APPLIED",
+      "executor": {
+        "id": "orchestrator",
+        "role": "ORCHESTRATOR",
+        "kind": "SYSTEM"
+      },
+      "payload": {
+        "contract_hash": "00c0353b6bac17c654cfc91b0d7eb300d976b327e9b0ed98a58327e04940db09",
+        "graph_0_hash": "5a61f2a8bdf9adb4279345a76ca34803ef274caf9a057965be28fac59e5397cb",
+        "graph_n_hash": "b2ae0ecc724b6e2f7dae54d9626f39d1105ea7951205f3f0e683cc3c9703d6c9",
+        "gate": {
+          "result": "FAIL",
+          "reasons": [
+            {
+              "rule": "MUST_WEAKENED",
+              "requirement_id": "R1",
+              "detail": "MUST-вимога не збережена"
+            },
+            {
+              "rule": "MUST_WEAKENED",
+              "requirement_id": "R2",
+              "detail": "MUST-вимога не збережена"
+            }
+          ]
+        },
+        "alignment_score": 0.333333,
+        "must_summary": {
+          "total": 2,
+          "preserved": 0,
+          "weakened": 2,
+          "dropped": 0
+        },
+        "requirements": [
+          {
+            "requirement_id": "R1",
+            "priority": "MUST",
+            "status": "WEAKENED",
+            "status_at_start": "PRESERVED",
+            "coverage": 0.1,
+            "touched": true,
+            "judge_pending": true,
+            "serving_nodes": [
+              "n-api2",
+              "n-cache"
+            ]
+          },
+          {
+            "requirement_id": "R2",
+            "priority": "MUST",
+            "status": "WEAKENED",
+            "status_at_start": "PRESERVED",
+            "coverage": 0.5,
+            "touched": true,
+            "judge_pending": true,
+            "serving_nodes": [
+              "n-enc2"
+            ]
+          },
+          {
+            "requirement_id": "R3",
+            "priority": "SHOULD",
+            "status": "DROPPED",
+            "status_at_start": "PRESERVED",
+            "coverage": 0.0,
+            "touched": true,
+            "judge_pending": true,
+            "serving_nodes": []
+          },
+          {
+            "requirement_id": "R4",
+            "priority": "COULD",
+            "status": "PRESERVED",
+            "status_at_start": "PRESERVED",
+            "coverage": 1.0,
+            "touched": true,
+            "judge_pending": true,
+            "serving_nodes": [
+              "n-plan2"
+            ]
+          }
+        ],
+        "concession_ids": [
+          "conc-dc7ec1fe8cf20e0c",
+          "conc-f9cffbcf9a4d7860",
+          "conc-bd123723f2b9f3b1",
+          "conc-7aa67bef4a1834aa",
+          "conc-4017e1741c072e17"
+        ],
+        "approved_concession_ids": [],
+        "node_diff": {
+          "added": [
+            "n-api2",
+            "n-enc2",
+            "n-plan2"
+          ],
+          "removed": [
+            "n-api",
+            "n-enc",
+            "n-mreg",
+            "n-plan"
+          ],
+          "changed": []
+        },
+        "judge_queue": [
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "mutation_record_ids": [
+          "rec-0001",
+          "rec-0002",
+          "rec-0003",
+          "rec-0004"
+        ],
+        "p_trajectory": {
+          "start": 0.41,
+          "end": 0.67
+        }
+      },
+      "schema_version": "1.2",
+      "seq": 10,
+      "record_id": "rec-0010",
+      "prev_hash": "180e35476b2ecd75503e371ce4305b7bccbce42a6bd55c4dd1ddbaeedaba49b4",
+      "record_hash": "cc37a4f588ee30bd11ee340e20b60c4354f203e634d2450e97196365e912cec8"
+    }
+  ]
+}
