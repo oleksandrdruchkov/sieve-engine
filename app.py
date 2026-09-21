@@ -56,7 +56,11 @@ col_model_select, col_btn = st.columns([1, 1])
 with col_model_select:
     active_model = st.selectbox(
         "Модель Groq для міркувань:",
-        ("llama-3.1-70b-versatile", "llama-3.1-8b-instant", "deepseek-r1-distill-llama-70b")
+        (
+            "llama-3.3-70b-versatile",
+            "deepseek-r1-distill-llama-70b"
+        ),
+        index=0
     )
 
 with col_btn:
