@@ -11,7 +11,7 @@ st.set_page_config(
 st.title("⚖️ Sieve Engine: Фінальний Контракт")
 st.caption("Детермінований аудит інженерної надійності та відповідності цілям")
 
-# 1. Ініціалізація клієнта Groq із секретів Streamlit
+# 1. Ініціалізація клієнта Groq із Secrets
 client = None
 if "GROQ_API_KEY" in st.secrets:
     try:
@@ -21,6 +21,7 @@ if "GROQ_API_KEY" in st.secrets:
 else:
     st.warning("⚠️ Не налаштовано GROQ_API_KEY у вкладці Secrets.")
 
+# Завантаження даних детермінованого контракту
 @st.cache_data
 def load_data():
     with open("truth_seeker_fidelity_examples.json", "r", encoding="utf-8") as f:
@@ -32,7 +33,7 @@ def load_data():
 try:
     reqs, fid, concessions = load_data()
 
-    # Верхній блок метрик
+    # Панель верхніх метрик
     col1, col2, col3 = st.columns(3)
     p = fid.get("p_trajectory", {"start": 0.0, "end": 0.0})
     gate = fid["gate"]["result"]
@@ -71,74 +72,82 @@ try:
                     dp = f" (ΔP: {c['delta_p']:+.2f})" if "delta_p" in c else ""
                     st.markdown(f"- `{c['kind']}`: effect `{c['effect_on_requirement']}`{dp}")
 
-except FileNotFoundError:
-    st.error("Файл 'truth_seeker_fidelity_examples.json' не знайдено в репозиторії.")
+except Exception as e:
+    st.error(f"Помилка завантаження файлу прикладів: {e}")
 
-# 2. Інтерактивний Red Team аудит через Groq
+# ==========================================================
+# 2. ПОСЛІДОВНЕ ВІКНО: ОБ'ЄКТ АНАЛІЗУ -> ПРОМПТ ДЛЯ АТАКИ
+# ==========================================================
 st.divider()
-st.subheader("🤖 Живий Red Team аудит (Groq Reasoning)")
+st.header("🎯 Генератор Red Team Атак на План")
+st.caption("Крок 1: Задайте об'єкт для дослідження. Крок 2: Налаштуйте вектор атаки моделі.")
 
-col_model, col_temp = st.columns([2, 1])
-with col_model:
-    model_name = st.selectbox(
-        "Модель міркувань:",
-        ("llama-3.3-70b-versatile", "deepseek-r1-distill-llama-70b")
+with st.form("red_team_analysis_form"):
+    # КРОК 1: ОБ'ЄКТ АНАЛІЗУ
+    st.subheader("Крок 1: Об'єкт для аналізу (Цільовий вузол / План)")
+    target_object = st.text_area(
+        "Опишіть твердження, архітектурне рішення або фрагмент специфікації:",
+        value="API Gateway балансує трафік на 4 інстанси додатку і гарантує витримку пікового навантаження 12 000 rps без деградації бази даних за рахунок Redis-кешу.",
+        height=100,
+        help="Саме це твердження буде піддано декомпозиції на приховані вразливості."
     )
-with col_temp:
-    temperature = st.slider("Temperature (креативність):", 0.0, 1.0, 0.6, 0.1)
 
-# Поле системного промпта
-default_system_prompt = "Ти — строгий верифікатор та Red Team аналітик надійності архітектурних систем."
-system_prompt = st.text_area(
-    "Системний промпт (роль та обмеження моделі):",
-    value=default_system_prompt,
-    height=70
-)
+    # КРОК 2: НАЛАШТУВАННЯ АТАКИ
+    st.subheader("Крок 2: Інструкція для атаки (Red Team Attack Prompt)")
+    
+    col_model, col_temp = st.columns([2, 1])
+    with col_model:
+        model_name = st.selectbox(
+            "Модель міркувань:",
+            ("llama-3.3-70b-versatile", "deepseek-r1-distill-llama-70b")
+        )
+    with col_temp:
+        temperature = st.slider("Креативність (Temperature):", 0.0, 1.0, 0.4, 0.1)
 
-# Поле твердження вузла
-target_statement = st.text_input(
-    "Твердження вузла для атаки (Target Node):",
-    value="API-шар масштабується горизонтально до 12 000 rps"
-)
+    system_role = st.text_input(
+        "Роль атакуючого (System Prompt):",
+        value="Ти — безжальний Red Team аналітик високонавантажених розподілених систем. Твоя мета — знайти фатальну точку відмови."
+    )
 
-# Поле шаблону промпта завдання
-default_user_prompt = (
-    "Проаналізуй твердження плану: \"{statement}\".\n\n"
-    "Твоя задача — виявити приховані вади, вузькі місця або хибні припущення.\n"
-    "Сформулюй структуровану відповідь:\n"
-    "1. Назва атаки (лаконічно).\n"
-    "2. Суть вразливості (чому це не спрацює за пікових умов).\n"
-    "3. Оцінка Likelihood Ratio (LR від 0.1 до 10.0, де >1 підтримує атаку, <1 спростовує)."
-)
-user_prompt_template = st.text_area(
-    "Шаблон промпта завдання (використовуйте {statement} для підстановки твердження):",
-    value=default_user_prompt,
-    height=180
-)
+    attack_prompt_template = st.text_area(
+        "Шаблон інструкції атаки:",
+        value="""Здійсни стрес-тест наступного об'єкта:
+\"\"\"{target}\"\"\"
 
-if st.button("Згенерувати атаку"):
+Твоє завдання:
+1. Виявити 1 критичну вразливість, яка призведе до відмови системи за пікових умов (наприклад: Cache Stampede, вичерпання пулу з'єднань, неконсистентність).
+2. Сформулювати чітку контратаку: що саме зламається і як.
+3. Оцінити силу доказу за шкалою Likelihood Ratio (LR від 0.1 до 10.0, де LR > 1.0 означає високу ймовірність збою).""",
+        height=160
+    )
+
+    # Кнопка відправки форми
+    submitted = st.form_submit_button("🔥 Запустити атаку на об'єкт", type="primary")
+
+if submitted:
     if not client:
-        st.error("Помилка: клієнт Groq не налаштований у Secrets.")
-    elif "{statement}" not in user_prompt_template:
-        st.warning("⚠️ У шаблоні промпта відсутній маркер `{statement}` для підстановки твердження.")
+        st.error("Помилка: не знайдено GROQ_API_KEY у Secrets налаштувань Streamlit.")
+    elif not target_object.strip():
+        st.warning("⚠️ Будь ласка, введіть об'єкт для аналізу в Кроці 1.")
     else:
-        with st.spinner("Модель виконує декомпозицію та стрес-тест..."):
-            final_prompt = user_prompt_template.format(statement=target_statement)
-
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": final_prompt}
-            ]
-
+        with st.spinner("Модель шукає критичні вразливості в наданому об'єкті..."):
+            # Підставляємо об'єкт у шаблон інструкції
+            final_user_prompt = attack_prompt_template.replace("{target}", target_object)
+            
             try:
-                # Виклик API із захистом від збою
-                completion = client.chat.completions.create(
+                response = client.chat.completions.create(
                     model=model_name,
-                    messages=messages,
+                    messages=[
+                        {"role": "system", "content": system_role},
+                        {"role": "user", "content": final_user_prompt}
+                    ],
                     temperature=temperature,
-                    max_tokens=1024
+                    max_tokens=900
                 )
-                st.markdown("### 🎯 Результат атаки:")
-                st.info(completion.choices[0].message.content)
+                
+                st.success("✅ Атаку успішно згенеровано!")
+                st.markdown("### 📋 Результати стрес-тесту:")
+                st.markdown(response.choices[0].message.content)
+                
             except Exception as err:
-                st.error(f"Помилка виклику моделі Groq: {err}")
+                st.error(f"Помилка виклику API Groq: {err}")
